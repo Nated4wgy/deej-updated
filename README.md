@@ -1,10 +1,10 @@
 # CHANGELOG.md
 
-## deej-win11 release clean
+## deej-updated
 
 This changelog covers the major changes made while updating deej for Windows 11, adding a Settings app, and stabilising runtime behaviour. It focuses on user visible and reliability changes, not every small refactor.
 
-## [Win11 Clean Release] - 2026-01-03
+##
 
 ### Added
 - Windows Settings companion app (deej-settings.exe)
