@@ -164,7 +164,3 @@ This repository remains under the MIT License, same as upstream deej. See LICENS
 Upstream project: deej by Omri Harel.
 This fork focuses on Windows 11 build and usability improvements plus a companion Settings application.
 
-
-If you want, I can also add a short `RELEASE.md` that is literally a checklist for packaging a zip release (copy these files, test steps, and a quick sanity checklist like “move slider, save config, confirm app does not exit”).
-::contentReference[oaicite:0]{index=0}
-
