@@ -1,10 +1,9 @@
 package deej
 
 import (
- "os"
- "os/exec"
- "path/filepath"
 	"github.com/getlantern/systray"
+	"os"
+	"path/filepath"
 
 	"github.com/omriharel/deej/pkg/deej/icon"
 )
@@ -49,9 +48,10 @@ func (d *Deej) initializeTray(onDone func()) {
 				case <-editConfig.ClickedCh:
 					logger.Info("Edit config menu item clicked, opening config for editing")
 
- exe,_:=os.Executable();settingsExe:=filepath.Join(filepath.Dir(exe),"deej-settings.exe")
- cmd:=exec.Command(settingsExe,"--config",filepath.Join(mustWorkingDirectory(),"config.yaml"))
- if err:=cmd.Start();err!=nil{logger.Warnw("Open Settings","error",err);d.notifier.Notify("Settings unavailable","Place deej-settings.exe beside deej.exe.")}else{go cmd.Wait()}
+					if err := OpenSettings(filepath.Join(mustWorkingDirectory(), "config.yaml")); err != nil {
+						logger.Warnw("Open interface", "error", err)
+						d.notifier.Notify("Could not open Deej", err.Error())
+					}
 
 				// refresh sessions
 				case <-refreshSessions.ClickedCh:
@@ -63,6 +63,12 @@ func (d *Deej) initializeTray(onDone func()) {
 				}
 			}
 		}()
+
+		if d.openSettingsOnStart {
+			if err := OpenSettings(filepath.Join(mustWorkingDirectory(), "config.yaml")); err != nil {
+				logger.Warnw("Open interface", "error", err)
+			}
+		}
 
 		// actually start the main runtime
 		onDone()
@@ -82,4 +88,4 @@ func (d *Deej) stopTray() {
 	systray.Quit()
 }
 
-func mustWorkingDirectory()string{directory,_:=os.Getwd();return directory}
+func mustWorkingDirectory() string { directory, _ := os.Getwd(); return directory }

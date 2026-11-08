@@ -13,11 +13,11 @@ func TestStartupCommandRoundTripsWindowsPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(args, []string{executable, "--config", config}) {
+	if !reflect.DeepEqual(args, []string{executable, "--background", "--config", config}) {
 		t.Fatalf("%q", args)
 	}
 	args, err = windows.DecomposeCommandLine(startupCommand(executable, "C:/My Apps/deej/config.yaml"))
-	if err != nil || !reflect.DeepEqual(args, []string{executable}) {
+	if err != nil || !reflect.DeepEqual(args, []string{executable, "--background"}) {
 		t.Fatalf("%q %v", args, err)
 	}
 }

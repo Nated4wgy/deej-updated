@@ -12,7 +12,7 @@ import (
 const startupKey = `Software\Microsoft\Windows\CurrentVersion\Run`
 
 func startupCommand(executable string, configPath ...string) string {
-	args := []string{executable}
+	args := []string{executable, "--background"}
 	if len(configPath) > 0 && configPath[0] != "" && !strings.EqualFold(filepath.Dir(configPath[0]), filepath.Dir(executable)) {
 		args = append(args, "--config", configPath[0])
 	}
@@ -25,7 +25,12 @@ func StartupEnabled(executable string, configPath ...string) bool {
 	}
 	defer k.Close()
 	v, _, err := k.GetStringValue("DeejUpdated")
-	return err == nil && strings.EqualFold(v, startupCommand(executable, configPath...))
+	if err != nil {
+		return false
+	}
+	current := startupCommand(executable, configPath...)
+	legacy := strings.Replace(current, " --background", "", 1)
+	return strings.EqualFold(v, current) || strings.EqualFold(v, legacy)
 }
 func SetStartup(executable string, enabled bool, configPath ...string) error {
 	if !filepath.IsAbs(executable) {

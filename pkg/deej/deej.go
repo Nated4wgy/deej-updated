@@ -26,12 +26,13 @@ type Deej struct {
 	serial   *SerialIO
 	sessions *sessionMap
 
-	stopChannel chan bool
-	stopOnce    sync.Once
-	statusStop  chan struct{}
-	statusDone  chan struct{}
-	version     string
-	verbose     bool
+	stopChannel         chan bool
+	stopOnce            sync.Once
+	statusStop          chan struct{}
+	statusDone          chan struct{}
+	version             string
+	verbose             bool
+	openSettingsOnStart bool
 }
 
 // NewDeej creates a Deej instance
@@ -189,3 +190,6 @@ func (d *Deej) stop() error {
 
 	return nil
 }
+
+// SetOpenSettingsOnStart controls whether the tray launches the UI after initialization.
+func (d *Deej) SetOpenSettingsOnStart(open bool) { d.openSettingsOnStart = open }

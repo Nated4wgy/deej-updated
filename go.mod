@@ -1,8 +1,6 @@
 module github.com/omriharel/deej
 
-// Modern Go toolchains are needed on Windows 11 (and generally recommended).
-// Go 1.22+ is recommended (and builds cleanly on Windows 11).
-// (Newer Go versions should also work.)
+// Windows CI uses Go 1.27.3.
 go 1.24.0
 
 require (
@@ -10,6 +8,7 @@ require (
 	github.com/gen2brain/beeep v0.11.2
 	github.com/getlantern/systray v1.2.2
 	github.com/go-ole/go-ole v1.3.0
+	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/jfreymuth/pulse v0.0.0-20200608153616-84b2d752b9d4
 	github.com/lxn/walk v0.0.0-20210112085537-c389da54e794
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
@@ -35,6 +34,7 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jackmordaunt/icns/v3 v3.0.1 // indirect
+	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
@@ -48,5 +48,5 @@ require (
 )
 
 // Notes:
-// - systray requires CGO_ENABLED=1 on Windows.
-// - viper/fsnotify handle live config reload.
+// - Windows production builds are pure Go; CGO/GCC is needed only for race detection.
+// - fsnotify handles replacement-aware configuration reload.

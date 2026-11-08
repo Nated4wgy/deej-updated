@@ -1,30 +1,31 @@
 # deej-updated
 
-A portable Windows mixer for a physical deej slider controller. The Go tray engine reads serial positions and controls Windows audio sessions. A native Settings app edits connection options and mappings without requiring YAML knowledge.
+One Windows app for your physical audio sliders. **deej.exe** contains the responsive mixer and a modern, local settings dashboard. No companion settings executable or external interface assets are required.
 
 ## Run
 
-1. Download a Windows ZIP from [Releases](https://github.com/Nated4wgy/deej-updated/releases). Development releases are marked prerelease.
-2. Extract the whole ZIP to a writable folder. Keep **deej.exe** and **deej-settings.exe** together.
-3. Run **deej-settings.exe**, choose the COM port and firmware's baud rate, configure sliders, and save.
-4. Run **deej.exe**. Open Settings from its tray icon whenever needed. Offline editing also works.
+1. Download a Windows ZIP from [Releases](https://github.com/Nated4wgy/deej-updated/releases) and extract it into a writable folder.
+2. Exit any older mixer or serial monitor using the controller.
+3. Run **deej.exe**. The mixer starts in the tray and opens the dashboard. Configure your COM port, matching firmware baud rate and slider targets, then save.
+4. Close the window whenever you like; the mixer keeps running. Open it again from the tray's Settings menu or by opening deej.exe again.
 
-Both programs use config.yaml beside the executable, including at Windows login. The startup toggle registers the mixer for the current user. Use a writable portable folder, rather than Program Files. An explicit **--config C:/path/config.yaml** is supported; keep the filename config.yaml.
+The startup toggle runs quietly in the tray at Windows login. The dashboard uses WebView2 Runtime, normally included with Windows 11. If it is missing, install Microsoft's Evergreen WebView2 Runtime; the background mixer does not depend on the interface being open. The runtime is already present on the development machine. The app loads embedded local content and blocks web-resource requests; it does not serve a local website or need an Internet connection for settings.
 
-Exit the old mixer before trying the new one: only one program can open the controller. For an initial trial, copy the old config into the new folder, leaving the old installation intact. No firmware upgrade is required; 9600 baud remains supported.
+For an upgrade, use a fresh folder and copy your existing config.yaml into it. Keep the previous release available until you have tried the new build. Your YAML and firmware remain compatible; no baud-rate or noise-setting changes are made automatically.
 
-## Settings
+## Dashboard
 
-- One or more targets per slider; separate groups with semicolons in the UI.
-- Choose discovered apps/devices or type an executable name for an app that is closed.
-- Built-ins: **master** (default output), **system**, **mic** (default input), **deej.current** (foreground app), **deej.unmapped** (unassigned app sessions).
-- Named devices use their full Windows friendly name. Matching is case insensitive.
-- Invert direction and choose low/default/high noise reduction. High filtering requires larger movements and can feel stepped.
-- Live position, effective mappings and received-sample-to-volume-call timing appear while the mixer runs. Timing excludes device sampling, USB transit and audible output delay.
-- Save backs up the previous file to config.yaml.bak, validates and atomically replaces the file. Invalid external edits retain working settings.
-- Advanced YAML opens Notepad. Reopen Settings after editing externally to avoid overwriting concurrent changes.
+- Live slider cards show physical positions. Add one or more targets with the searchable picker; targets appear as removable chips.
+- Choose discovered apps/devices, system controls, or type an app executable for an application that is not running.
+- Device & preferences contains serial settings, noise filtering, direction inversion and Windows startup.
+- Diagnostics shows the connection, discovered audio targets and recent received-sample-to-volume-call timing. This excludes controller/USB transit and audible playback delay.
+- Light and dark themes are remembered locally. Keyboard navigation and Ctrl+S are supported.
+- Saving validates the config, preserves unrelated YAML, creates config.yaml.bak and atomically replaces the file. Invalid edits keep the mixer's last good configuration.
+- Advanced YAML opens Notepad. Use Reload configuration afterwards. Concurrent edits are detected rather than silently overwritten. Restore backup can recover even a corrupt current file, retaining it as config.yaml.before-restore.
 
-Original scalar and list mappings remain supported:
+Built-in targets: **master**, **system**, **mic**, **deej.current** (foreground app when moved), **deej.unmapped** (unassigned app sessions). Named devices use the full Windows friendly name, matched case insensitively. Supports up to 32 sliders.
+
+Original scalar/list YAML mappings still work:
 
 ~~~yaml
 slider_mapping:
@@ -37,36 +38,41 @@ invert_sliders: false
 noise_reduction: default
 ~~~
 
-YAML indexes start at zero; UI labels start at one. Supports up to 32 sliders. Legacy mappings in logs/preferences.yaml are merged; the UI shows effective mappings. Move wanted legacy targets into the main config and remove the legacy mapping file if you want the UI to be the sole mapping source.
+YAML indexes start at zero; UI labels start at one. Legacy mappings in logs/preferences.yaml are still merged. Move wanted legacy targets into config.yaml and remove the legacy mapping file if the UI should be the only mapping source.
 
-## Response and reliability
+## Single executable, independent audio work
 
-Serial ingestion no longer waits for Windows audio calls. Pending movement is coalesced to the newest value per slider. Audio interfaces have one persistent initialized owner thread. Discovery, volume writes and release are serialized. Device notifications signal the worker, and failed discovery retains usable targets. Serial reconnect uses bounded backoff; shutdown uses a bounded read timeout.
+The same executable has two runtime roles. The tray mixer owns serial/audio work. Its interface runs in UI-only mode in a separate process of **the same deej.exe**, so rendering and editing do not block slider processing. WebView2 also uses its standard Windows helper processes. Closing the interface releases those resources without stopping the mixer. Reopening reuses the existing interface for that config.
 
-Sessions are also refreshed every five seconds to find new apps, and physical positions are reapplied afterwards. Physical sliders are authoritative: a Windows mixer adjustment can be overwritten at the next refresh. Foreground targeting uses a short cache and remains experimental for unusual child-process audio routing.
+Launch options:
 
-These changes remove known backlog and lifetime hazards. Physical-to-audible response still needs validation with your controller and audio devices. Synthetic timings are not hardware latency measurements.
+~~~text
+deej.exe                       Start mixer and show interface
+deej.exe --background          Start mixer in tray only
+deej.exe --settings            Open interface without starting another mixer
+deej.exe --check-config        Validate config and exit
+~~~
 
-## Build Windows amd64
+Add **--config C:/path/config.yaml** for an explicit configuration location. The default is config.yaml beside the executable, including at login. Use a writable portable folder rather than Program Files.
 
-Install Go 1.27.3 (CI baseline), Git, and put Go on PATH. The module declares Go 1.24 as its minimum language version. Production builds require no C compiler; race detection requires GCC and CGO.
+Serial ingestion retains only the latest pending value per slider. A persistent Windows audio owner serializes discovery, volume writes and COM release. The previously validated audio pipeline is retained. Sessions refresh every five seconds and physical positions are reapplied; a stationary foreground slider remains bound to its last moved target. High noise reduction still requires larger movements and can feel stepped.
+
+## Build and tests
+
+Windows amd64 is the release target. Install Go 1.27.3 (CI baseline) and Git; put Go on PATH. Production builds need no C compiler. Race detection needs GCC/CGO. Node 22+ and npm are used only for interface regression tests, not to run the app.
 
 ~~~powershell
 git clone https://github.com/Nated4wgy/deej-updated.git
 cd deej-updated
 ./scripts/build_windows.ps1
+npm ci
+npm test
 ~~~
 
-The script installs pinned github.com/akavel/rsrc@v0.10.2, regenerates amd64 resources from the tracked icon/manifest, verifies modules, runs tests/vet and builds both apps into bin/. Resources are embedded; manifest sidecars are unnecessary. An existing output config is never overwritten.
+The script installs pinned rsrc v0.10.2, generates amd64 icon/manifest resources, verifies dependencies, runs Go tests/vet and builds **bin/deej.exe**. An existing output config is not overwritten. The interface is embedded; no HTML/CSS/JS files, DLL sidecar or settings EXE must be copied alongside it. UI tests use installed Microsoft Edge headlessly with fixture data, separate from user browser profiles and the controller.
 
-The bundle includes BUILD-INFO.txt (source commit/toolchain), SHA256SUMS.txt, sample config and license. Use an ordinary writable temp directory if a restricted environment prevents file replacement. For race checks use **CGO_ENABLED=1 go test -race ./pkg/deej/...** with GCC available.
+Successful GitHub push builds run all checks, including race and UI tests, then preserve a source-linked ZIP as a prerelease. Tagged v* releases are normal releases. Artifacts are also kept for 90 days; release assets remain recoverable beyond artifact expiry unless deleted. Each bundle includes source/toolchain identity, binary SHA-256 checksums, license notices and a sample config. Personal configuration and logs are not uploaded.
 
-## Recovery
+See [validation](docs/validation.md), [unified app notes](docs/unified-app.md) and [roadmap](docs/roadmap.md). The original Linux backend remains in source; this interface and the release validation target Windows amd64.
 
-Windows GitHub Actions checks pushes to master and the development branch, and pull requests. Every successful push creates a durable prerelease ZIP tied to the exact source commit. Tagged v* releases are normal releases. CI artifacts are also retained for 90 days; release assets remain beyond that unless deleted.
-
-Recover by downloading a release ZIP, or checking out its tag/commit and running the build script. Keep your own configuration backup: personal config and logs are not uploaded. See [validation](docs/validation.md) and [roadmap](docs/roadmap.md).
-
-## License
-
-MIT; see [LICENSE](LICENSE). Based on [deej by Omri Harel](https://github.com/omriharel/deej). The original Linux backend remains in the tree; native Settings and release checks target Windows amd64. Linux runtime behaviour is not validated by this release.
+MIT; see [LICENSE](LICENSE) and THIRD-PARTY-NOTICES.txt. Based on [deej by Omri Harel](https://github.com/omriharel/deej).

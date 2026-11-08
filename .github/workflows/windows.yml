@@ -21,6 +21,17 @@ jobs:
       - name: Build and verify portable bundle
         shell: pwsh
         run: ./scripts/build_windows.ps1 -Version ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.sha) }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Dashboard regression checks
+        shell: pwsh
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'UI dependencies failed' }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw 'UI checks failed' }
       - name: Race detector
         shell: pwsh
         env:
