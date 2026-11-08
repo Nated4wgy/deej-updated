@@ -116,3 +116,30 @@ func TestDiscoveryFailureRetainsWorkingTargets(t *testing.T) {
 	}
 	m.clear()
 }
+
+func TestRefreshDoesNotRetargetStationaryForegroundSlider(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+	cc, _ := NewConfig(logger, nil)
+	cc.current.SliderMapping = map[int][]string{0: {"deej.current"}}
+	cc.revision = "test"
+	d := &Deej{config: cc}
+	d.serial, _ = NewSerialIO(d, logger)
+	m, _ := newSessionMap(d, logger, &fakeFinder{})
+	m.loadConfig()
+	first, second := &fakeSession{}, &fakeSession{}
+	m.m = map[string][]Session{"first.exe": {first}, "second.exe": {second}}
+	focused := "first.exe"
+	m.foreground = func() ([]string, error) { return []string{focused}, nil }
+	event := SliderMoveEvent{0, 0.4, time.Now()}
+	m.desired[0] = event
+	m.apply(event, true)
+	focused = "second.exe"
+	m.reapply()
+	if first.GetVolume() != 0.4 || second.GetVolume() != 0 {
+		t.Fatal("background refresh changed the newly focused app without a slider move")
+	}
+	m.apply(SliderMoveEvent{0, 0.8, time.Now()}, true)
+	if second.GetVolume() != 0.8 {
+		t.Fatal("a new slider movement did not target the foreground app")
+	}
+}

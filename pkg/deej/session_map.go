@@ -32,26 +32,28 @@ type AudioStatus struct {
 	LastDiscoveryMS   float64  `json:"last_discovery_ms"`
 }
 type sessionMap struct {
-	deej           *Deej
-	logger         *zap.SugaredLogger
-	sessionFinder  SessionFinder
-	m              map[string][]Session // accessed only by the audio worker
-	desired        map[int]SliderMoveEvent
-	config         Settings
-	configRevision string
-	refresh        chan bool
-	stop           chan struct{}
-	done           chan struct{}
-	stopOnce       sync.Once
-	reload         chan bool
-	statusMu       sync.Mutex
-	status         AudioStatus
-	samples        []float64
-	lastRefresh    time.Time
+	foreground        func() ([]string, error)
+	foregroundTargets map[int][]string
+	deej              *Deej
+	logger            *zap.SugaredLogger
+	sessionFinder     SessionFinder
+	m                 map[string][]Session // accessed only by the audio worker
+	desired           map[int]SliderMoveEvent
+	config            Settings
+	configRevision    string
+	refresh           chan bool
+	stop              chan struct{}
+	done              chan struct{}
+	stopOnce          sync.Once
+	reload            chan bool
+	statusMu          sync.Mutex
+	status            AudioStatus
+	samples           []float64
+	lastRefresh       time.Time
 }
 
 func newSessionMap(d *Deej, logger *zap.SugaredLogger, finder SessionFinder) (*sessionMap, error) {
-	return &sessionMap{deej: d, logger: logger.Named("sessions"), sessionFinder: finder, m: map[string][]Session{}, desired: map[int]SliderMoveEvent{}, refresh: make(chan bool, 1), stop: make(chan struct{}), done: make(chan struct{}), reload: d.config.SubscribeToChanges()}, nil
+	return &sessionMap{foreground: util.GetCurrentWindowProcessNames, foregroundTargets: map[int][]string{}, deej: d, logger: logger.Named("sessions"), sessionFinder: finder, m: map[string][]Session{}, desired: map[int]SliderMoveEvent{}, refresh: make(chan bool, 1), stop: make(chan struct{}), done: make(chan struct{}), reload: d.config.SubscribeToChanges()}, nil
 }
 func (m *sessionMap) Status() AudioStatus {
 	m.statusMu.Lock()
@@ -126,6 +128,7 @@ func (m *sessionMap) run(ready chan<- error) {
 	}
 }
 func (m *sessionMap) loadConfig() {
+	m.foregroundTargets = map[int][]string{}
 	m.config, m.configRevision, _ = m.deej.config.SnapshotState()
 	if m.configRevision == "" {
 		m.config.SliderMapping = map[int][]string{}
@@ -175,6 +178,7 @@ func (m *sessionMap) reapply() {
 	// Do not replay an old value ahead of a newer sample received during discovery.
 	for _, event := range m.deej.serial.pending.take() {
 		m.desired[event.SliderID] = event
+		delete(m.foregroundTargets, event.SliderID)
 	}
 	for id := 0; id < maxSliders; id++ {
 		if event, ok := m.desired[id]; ok {
@@ -183,9 +187,20 @@ func (m *sessionMap) reapply() {
 	}
 }
 func (m *sessionMap) apply(event SliderMoveEvent, measure bool) {
+	if measure {
+		delete(m.foregroundTargets, event.SliderID)
+	}
 	applied := false
 	for _, target := range m.config.SliderMapping[event.SliderID] {
-		for _, key := range m.resolveTarget(target) {
+		keys := m.resolveTarget(target)
+		if strings.EqualFold(target, "deej.current") {
+			if previous, ok := m.foregroundTargets[event.SliderID]; ok {
+				keys = previous
+			} else {
+				m.foregroundTargets[event.SliderID] = append([]string(nil), keys...)
+			}
+		}
+		for _, key := range keys {
 			for _, session := range m.m[key] {
 				// Events already pass a noise filter. Avoid a synchronous GetVolume before every Set.
 				if err := session.SetVolume(event.PercentValue); err != nil {
@@ -220,7 +235,7 @@ func (m *sessionMap) resolveTarget(target string) []string {
 	target = strings.ToLower(target)
 	switch target {
 	case "deej.current":
-		names, err := util.GetCurrentWindowProcessNames()
+		names, err := m.foreground()
 		if err != nil {
 			return nil
 		}
