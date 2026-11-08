@@ -26,7 +26,7 @@ jobs:
         env:
           CGO_ENABLED: '1'
         run: |
-          go test -race ./pkg/deej/... 
+          go test -race ./pkg/deej/...
           if ($LASTEXITCODE -ne 0) { throw 'Race tests failed' }
       - name: Package
         shell: pwsh
@@ -48,5 +48,10 @@ jobs:
           $tag = "dev-$env:COMMIT"
           $releaseArgs = @('--prerelease', '--title', "Development build $env:COMMIT")
           if ($env:REF_TYPE -eq 'tag') { $tag = $env:REF_NAME; $releaseArgs = @('--title', $tag) }
-          gh release create $tag deej-windows-amd64.zip --target $env:COMMIT --notes 'Source is preserved at this commit. Includes portable Windows binaries, build identity and SHA-256 checksums. Development builds require local hardware validation.' @releaseArgs
+          gh release view $tag --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag deej-windows-amd64.zip --clobber
+          } else {
+            gh release create $tag deej-windows-amd64.zip --target $env:COMMIT --notes 'Source is preserved at this commit. Includes portable Windows binaries, build identity and SHA-256 checksums. Development builds require local hardware validation.' @releaseArgs
+          }
           if ($LASTEXITCODE -ne 0) { throw 'Recovery release upload failed' }
