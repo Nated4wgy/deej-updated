@@ -82,3 +82,22 @@ func TestWatcherSeesAtomicReplacementAndLatestBurst(t *testing.T) {
 	}
 	t.Fatal("atomic replacement never reloaded")
 }
+
+func TestRestoreRecoversCorruptCurrentConfig(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "config.yaml")
+	backup := []byte("# original\nslider_mapping: {0: master}\ncustom_key: preserved\n")
+	corrupt := []byte("slider_mapping: [broken")
+	os.WriteFile(file+".bak", backup, 0600)
+	os.WriteFile(file, corrupt, 0600)
+	if err := RestoreSettingsBackup(file); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(file)
+	if string(data) != string(backup) {
+		t.Fatal("backup was not restored exactly")
+	}
+	data, _ = os.ReadFile(file + ".before-restore")
+	if string(data) != string(corrupt) {
+		t.Fatal("pre-restore file was not preserved")
+	}
+}

@@ -217,7 +217,10 @@ func atomicWrite(filename string, data []byte) error {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	if err:=replaceFile(name, filename);err!=nil{return fmt.Errorf("replace %s with %s: %w",filename,name,err)};return nil
+	if err := replaceFile(name, filename); err != nil {
+		return fmt.Errorf("replace %s with %s: %w", filename, name, err)
+	}
+	return nil
 }
 
 type CanonicalConfig struct {
@@ -323,6 +326,10 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 		cc.logger.Warnw("Watch config directory", "error", err)
 		return
 	}
+	// Close the load-to-watch startup gap after subscribing to directory changes.
+	if err := cc.Load(); err != nil {
+		cc.logger.Debugw("Initial watched config unavailable", "error", err)
+	}
 	var timer *time.Timer
 	var tick <-chan time.Time
 	defer func() {
@@ -359,3 +366,29 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 	}
 }
 func (cc *CanonicalConfig) StopWatchingConfigFile() { cc.stopOnce.Do(func() { close(cc.stop) }) }
+
+// SnapshotState correlates the immutable settings and acknowledgement revision under one lock.
+func (cc *CanonicalConfig) SnapshotState() (Settings, string, string) {
+	cc.mu.RLock()
+	defer cc.mu.RUnlock()
+	return cloneSettings(cc.current), cc.revision, cc.lastError
+}
+
+// RestoreSettingsBackup restores the exact validated backup, even if the current YAML is corrupt.
+func RestoreSettingsBackup(filename string) error {
+	data, err := os.ReadFile(filename + ".bak")
+	if err != nil {
+		return err
+	}
+	if _, err = ParseSettings(data); err != nil {
+		return fmt.Errorf("backup is invalid: %w", err)
+	}
+	if current, err := os.ReadFile(filename); err == nil {
+		if err = atomicWrite(filename+".before-restore", current); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return atomicWrite(filename, data)
+}

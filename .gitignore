@@ -18,3 +18,4 @@ bin/
 *.zip
 config.yaml.bak
 .deej-*
+config.yaml.before-restore

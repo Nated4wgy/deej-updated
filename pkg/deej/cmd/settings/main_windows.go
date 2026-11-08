@@ -141,16 +141,16 @@ func main() {
 			return
 		}
 		engine := filepath.Join(directory, "deej.exe")
-		wasStartup := util.StartupEnabled(engine)
+		wasStartup := util.StartupEnabled(engine, filename)
 		if wasStartup != startup.Checked() {
-			if err := util.SetStartup(engine, startup.Checked()); err != nil {
+			if err := util.SetStartup(engine, startup.Checked(), filename); err != nil {
 				errorBox(err)
 				return
 			}
 		}
 		if err := deej.SaveSettings(filename, s); err != nil {
 			if wasStartup != startup.Checked() {
-				util.SetStartup(engine, wasStartup)
+				util.SetStartup(engine, wasStartup, filename)
 			}
 			errorBox(err)
 			return
@@ -170,7 +170,7 @@ func main() {
 			Label{Text: "Noise reduction"}, ComboBox{AssignTo: &noise, Model: []string{"low", "default", "high"}, CurrentIndex: map[string]int{"low": 0, "default": 1, "high": 2}[settings.NoiseReductionLevel], OnCurrentIndexChanged: markDirty},
 			Label{Text: "Slider count"}, NumberEdit{AssignTo: &count, MinSize: Size{Width: 130}, Value: float64(countValue), MinValue: 1, MaxValue: 32, Decimals: 0, OnValueChanged: func() { updateRows(); markDirty() }},
 			CheckBox{AssignTo: &inverted, Text: "Invert slider direction", Checked: settings.InvertSliders, ColumnSpan: 2, OnCheckedChanged: markDirty},
-			CheckBox{AssignTo: &startup, MinSize: Size{Width: 220}, Text: "Start mixer with Windows", Checked: util.StartupEnabled(filepath.Join(directory, "deej.exe")), ColumnSpan: 2, OnCheckedChanged: markDirty},
+			CheckBox{AssignTo: &startup, MinSize: Size{Width: 220}, Text: "Start mixer with Windows", Checked: util.StartupEnabled(filepath.Join(directory, "deej.exe"), filename), ColumnSpan: 2, OnCheckedChanged: markDirty},
 		}},
 		Label{Text: "Low noise reduction follows smaller movements. Baud rate must match your device firmware."},
 		Label{Text: "Slider mappings", Font: Font{PointSize: 11, Bold: true}},
@@ -190,13 +190,7 @@ func main() {
 				if walk.MsgBox(mw, "Restore backup", "Replace config.yaml with the previous saved version? Close and reopen Settings afterwards.", walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) != walk.DlgCmdYes {
 					return
 				}
-				backup := filename + ".bak"
-				s, err := deej.ReadSettings(backup)
-				if err != nil {
-					errorBox(err)
-					return
-				}
-				if err = deej.SaveSettings(filename, s); err != nil {
+				if err := deej.RestoreSettingsBackup(filename); err != nil {
 					errorBox(err)
 					return
 				}
@@ -261,6 +255,12 @@ func main() {
 					}
 					if status.Serial.Error != "" {
 						text += " — " + status.Serial.Error
+					}
+					if status.Audio.Error != "" {
+						text += " | Audio: " + status.Audio.Error
+					}
+					if status.Serial.Connected && (status.Serial.LastFrame.IsZero() || time.Since(status.Serial.LastFrame) > 3*time.Second) {
+						text += " | Waiting for controller data"
 					}
 					connection.SetText(text + fmt.Sprintf("   |   Response p95: %.1f ms", status.Audio.P95ApplyMS))
 					if expectedRevision != "" {

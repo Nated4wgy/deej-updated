@@ -126,8 +126,10 @@ func (m *sessionMap) run(ready chan<- error) {
 	}
 }
 func (m *sessionMap) loadConfig() {
-	m.config = m.deej.config.Snapshot()
-	m.configRevision, _ = m.deej.config.State()
+	m.config, m.configRevision, _ = m.deej.config.SnapshotState()
+	if m.configRevision == "" {
+		m.config.SliderMapping = map[int][]string{}
+	}
 	m.statusMu.Lock()
 	m.status.ConfigRevision = m.configRevision
 	m.status.EffectiveSettings = cloneSettings(m.config)

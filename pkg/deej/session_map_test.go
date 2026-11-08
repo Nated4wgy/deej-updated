@@ -58,6 +58,7 @@ func (f *fakeFinder) Release() error { return nil }
 func TestWorkerCoalescesAndSerializesRefresh(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	cc, _ := NewConfig(logger, nil)
+	cc.revision = "test"
 	d := &Deej{config: cc}
 	d.serial, _ = NewSerialIO(d, logger)
 	first := &fakeSession{entered: make(chan struct{}), unblock: make(chan struct{})}
@@ -99,6 +100,7 @@ func TestWorkerCoalescesAndSerializesRefresh(t *testing.T) {
 func TestDiscoveryFailureRetainsWorkingTargets(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	cc, _ := NewConfig(logger, nil)
+	cc.revision = "test"
 	d := &Deej{config: cc}
 	d.serial, _ = NewSerialIO(d, logger)
 	finder := &fakeFinder{}
