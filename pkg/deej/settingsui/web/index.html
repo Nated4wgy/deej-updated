@@ -13,47 +13,46 @@
 <div class="shell">
 <aside>
  <div class="brand"><div class="brand-mark"><svg><use href="#sliders"/></svg></div><span>deej<span class="brand-dot">.</span></span></div>
- <div class="nav-label">WORKSPACE</div>
  <nav aria-label="Main navigation">
   <button class="nav-item active" data-page="mixer" aria-current="page"><svg><use href="#sliders"/></svg>Mixer<span class="nav-count" id="nav-count">5</span></button>
   <button class="nav-item" data-page="device"><svg><use href="#plug"/></svg>Device &amp; preferences</button>
   <button class="nav-item" data-page="diagnostics"><svg><use href="#pulse"/></svg>Diagnostics</button>
  </nav>
- <div class="sidebar-bottom"><div class="engine-state"><span class="dot" id="engine-dot"></span><span id="engine-state">Checking mixer</span></div><p>Close this window.<br>Your sound stays in reach.</p><span class="version" id="version">Deej</span></div>
+ <div class="sidebar-bottom"><div class="engine-state"><span class="dot" id="engine-dot"></span><span id="engine-state">Checking mixer</span></div><span class="version" id="version">Deej</span></div>
 </aside>
 <div class="workspace">
-<header><span class="eyebrow">YOUR AUDIO, YOUR WAY</span><button class="theme-button" id="theme"><svg><use href="#moon"/></svg><span>Dark mode</span></button></header>
+<header><span></span><button class="theme-button" id="theme"><svg><use href="#moon"/></svg><span>Dark mode</span></button></header>
 <main>
 <section class="page active" id="page-mixer">
- <div class="page-heading"><div><h1>Everything in balance<span>.</span></h1><p>Give every slider a purpose. Make it yours.</p></div><div class="connection-pill" id="connection"><span class="dot"></span><span id="connection-label">Checking connection</span></div></div>
- <div class="summary"><div><span class="metric-label">CONTROLLER</span><strong id="controller">Waiting for device</strong></div><div><span class="metric-label">SLIDERS</span><strong id="slider-metric">5 channels</strong></div><div><span class="metric-label">RESPONSE</span><strong id="response">Not measured yet</strong></div><div class="summary-note"><svg><use href="#sliders"/></svg><span>Move a physical slider<br>to see it here.</span></div></div>
- <div class="section-title"><h2>Your sliders <span class="subtle" id="mapping-count"></span></h2><button class="text-button" id="add-slider"><svg><use href="#plus"/></svg>Add slider</button></div>
+ <div class="page-heading"><div><h1>Mixer</h1></div><div class="connection-pill" id="connection"><span class="dot"></span><span id="connection-label">Checking connection</span></div></div>
+ <div class="summary"><div><span class="metric-label">CONTROLLER</span><strong id="controller">Waiting for device</strong></div><div><span class="metric-label">SLIDERS</span><strong id="slider-metric">5 channels</strong></div><div><span class="metric-label">RESPONSE</span><strong id="response">Not measured yet</strong></div></div>
+ <div class="section-title"><h2>Sliders <span class="subtle" id="mapping-count"></span></h2><button class="text-button" id="add-slider"><svg><use href="#plus"/></svg>Add slider</button></div>
  <div class="cards" id="cards"></div>
- <div class="offline-note" id="offline-note" hidden><svg><use href="#plug"/></svg><div><strong>The mixer is offline</strong><p>You can keep editing. Start the mixer to control audio.</p></div><button class="secondary" id="start-mixer">Start mixer</button></div>
- <p class="caption">Your sliders are physical controls. The meters show their current position.</p>
+ <div class="offline-note" id="offline-note" hidden><svg><use href="#plug"/></svg><div><strong>Mixer offline</strong><p>Settings can be edited while the mixer is stopped.</p></div><button class="secondary" id="start-mixer">Start mixer</button></div>
+
 </section>
 <section class="page" id="page-device">
- <div class="page-heading"><div><h1>Make yourself at home<span>.</span></h1><p>A few preferences. A setup that feels right.</p></div></div>
- <div class="settings-card"><div class="settings-intro"><div class="small-icon"><svg><use href="#plug"/></svg></div><div><h2>Your controller</h2><p>Connect the sliders on your desk.</p></div></div>
+ <div class="page-heading"><div><h1>Device settings</h1></div></div>
+ <div class="settings-card"><div class="settings-intro"><div class="small-icon"><svg><use href="#plug"/></svg></div><div><h2>Connection</h2></div></div>
   <div class="fields"><label>Serial port<div class="input-with-button"><input id="port" list="ports" placeholder="e.g. COM4" maxlength="100" required><button id="refresh-ports" class="secondary" type="button" aria-label="Refresh serial ports">Refresh</button></div><datalist id="ports"></datalist></label><label>Baud rate<input id="baud" type="number" min="50" max="2000000" step="1" required><small>Must match your controller firmware.</small></label></div>
  </div>
- <div class="settings-card"><div class="settings-intro"><div class="small-icon"><svg><use href="#sliders"/></svg></div><div><h2>How it feels</h2><p>Tune the movement to your hardware.</p></div></div>
-  <div class="preference"><div><h3>Noise reduction</h3><p>Low follows smaller movements. High filters more jitter.</p></div><div class="segments" role="group" aria-label="Noise reduction"><button data-noise="low">Low</button><button data-noise="default">Balanced</button><button data-noise="high">High</button></div></div>
-  <label class="preference"><div><h3>Invert slider direction</h3><p>Reverse which end is loud and which is quiet.</p></div><span class="switch"><input id="invert" type="checkbox"><span></span></span></label>
-  <label class="preference"><div><h3>Start with Windows</h3><p>Keep Deej ready in the tray when you sign in.</p></div><span class="switch"><input id="startup" type="checkbox"><span></span></span></label>
+ <div class="settings-card"><div class="settings-intro"><div class="small-icon"><svg><use href="#sliders"/></svg></div><div><h2>Behaviour</h2></div></div>
+  <div class="preference"><div><h3>Noise reduction</h3><p>Higher levels ignore smaller movements.</p></div><div class="segments" role="group" aria-label="Noise reduction"><button data-noise="low">Low</button><button data-noise="default">Balanced</button><button data-noise="high">High</button></div></div>
+  <label class="preference"><div><h3>Invert slider direction</h3></div><span class="switch"><input id="invert" type="checkbox"><span></span></span></label>
+  <label class="preference"><div><h3>Start with Windows</h3><p>Run in the tray at sign-in.</p></div><span class="switch"><input id="startup" type="checkbox"><span></span></span></label>
  </div>
- <div class="settings-card"><h2>Configuration &amp; recovery</h2><p class="muted">A local file, with a backup whenever you save.</p><div class="file-path" id="file-path"></div><div class="button-row"><button class="secondary" id="open-config">Advanced YAML <svg><use href="#arrow"/></svg></button><button class="secondary" id="open-folder">Open folder</button><button class="secondary" id="reload">Reload configuration</button><button class="secondary" id="restore">Restore backup</button></div></div>
+ <div class="settings-card"><h2>Configuration</h2><div class="file-path" id="file-path"></div><div class="button-row"><button class="secondary" id="open-config">Advanced YAML <svg><use href="#arrow"/></svg></button><button class="secondary" id="open-folder">Open folder</button><button class="secondary" id="reload">Reload configuration</button><button class="secondary" id="restore">Restore backup</button></div></div>
 </section>
 <section class="page" id="page-diagnostics">
- <div class="page-heading"><div><h1>A little peace of mind<span>.</span></h1><p>A live look at the connection behind your controls.</p></div></div>
+ <div class="page-heading"><div><h1>Diagnostics</h1></div></div>
  <div class="diagnostic-grid"><div class="settings-card"><span class="metric-label">MIXER</span><h2 id="diagnostic-engine">Checking</h2><p class="muted" id="diagnostic-serial">Waiting for status</p></div><div class="settings-card"><span class="metric-label">RECEIVED → APPLIED</span><h2 id="diagnostic-p95">—</h2><p class="muted">95th percentile, recent slider changes</p></div></div>
- <div class="settings-card"><h2>Audio targets</h2><p class="muted">Apps and devices the mixer can currently see.</p><div class="target-list" id="diagnostic-targets"></div><p id="audio-error" class="error-detail" hidden></p></div>
+ <div class="settings-card"><h2>Audio targets</h2><div class="target-list" id="diagnostic-targets"></div><p id="audio-error" class="error-detail" hidden></p></div>
  <p class="caption">Response timing starts when Deej receives a slider sample. It excludes controller, USB and audible playback delay.</p>
 </section>
 <div class="notice" id="notice" role="alert" hidden></div>
 </main>
-<footer><div class="save-state"><span id="save-dot" class="dot saved"></span><div><strong id="save-title">All changes saved</strong><span id="save-detail">The mixer keeps running when you close this window.</span></div></div><div class="button-row"><button id="revert" class="secondary" disabled>Revert</button><button id="save" class="primary" disabled><svg><use href="#check"/></svg>Save changes</button></div></footer>
+<footer><div class="save-state"><span id="save-dot" class="dot saved"></span><div><strong id="save-title">All changes saved</strong><span id="save-detail"></span></div></div><div class="button-row"><button id="revert" class="secondary" disabled>Revert</button><button id="save" class="primary" disabled><svg><use href="#check"/></svg>Save changes</button></div></footer>
 </div></div>
-<dialog id="picker"><div class="dialog-heading"><div><span class="eyebrow">BUILD YOUR MIX</span><h2 id="picker-title">Add a target</h2></div><button class="icon-button" id="picker-close" aria-label="Close target picker">×</button></div><input id="target-search" placeholder="Search apps, devices or system controls…" aria-label="Search targets"><div class="picker-options" id="picker-options"></div><div class="manual-target" id="manual-target" hidden><p>App not running? Add its executable name or a full device name.</p><button class="secondary" id="add-manual">Add typed target</button></div></dialog>
+<dialog id="picker"><div class="dialog-heading"><div><h2 id="picker-title">Add a target</h2></div><button class="icon-button" id="picker-close" aria-label="Close target picker">×</button></div><input id="target-search" placeholder="Search apps, devices or system controls…" aria-label="Search targets"><div class="picker-options" id="picker-options"></div><div class="manual-target" id="manual-target" hidden><p>Enter an executable or full device name.</p><button class="secondary" id="add-manual">Add typed target</button></div></dialog>
 <dialog id="confirm"><h2 id="confirm-title">Discard changes?</h2><p id="confirm-message"></p><div class="button-row"><button id="confirm-cancel" class="secondary">Cancel</button><button id="confirm-yes" class="primary">Continue</button></div></dialog>
 <script>/*SCRIPT*/</script></body></html>

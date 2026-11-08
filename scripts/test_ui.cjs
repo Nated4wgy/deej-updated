@@ -19,7 +19,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_CORE_PATH||'playwright-core');
     case 'restore':f.settings.slider_mapping={0:['master']};f.revision='restored';break;
    }queueMicrotask(()=>window.deejReceive({id:req.id,result,error}));}}};
   });
-  await page.setContent(html);await page.getByRole('heading',{name:'Everything in balance.'}).waitFor();await page.getByText('Connected · COM4',{exact:true}).waitFor();
+  await page.setContent(html);await page.getByRole('heading',{name:'Mixer',exact:true}).waitFor();await page.getByText('Connected · COM4',{exact:true}).waitFor();
   await page.waitForFunction(()=>document.querySelector('.meter').getAttribute('aria-valuenow')==='30');
   await page.getByRole('button',{name:'Add target to slider 1',exact:true}).click();await page.getByRole('button',{name:/Active application/}).click();
   await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.getByText('Settings applied',{exact:true}).waitFor();
