@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+ "os"
+ "path/filepath"
+ "github.com/omriharel/deej/pkg/deej/util"
 
 	"github.com/omriharel/deej/pkg/deej"
 )
@@ -13,15 +16,26 @@ var (
 	buildType  string
 
 	verbose bool
+ configFile string
+ checkConfig bool
 )
 
 func init() {
 	flag.BoolVar(&verbose, "verbose", false, "show verbose logs (useful for debugging serial)")
 	flag.BoolVar(&verbose, "v", false, "shorthand for --verbose")
-	flag.Parse()
+	flag.StringVar(&configFile,"config","","path to config.yaml (defaults to executable directory)")
+ flag.BoolVar(&checkConfig,"check-config",false,"validate config and exit without opening serial or audio")
+ flag.Parse()
 }
 
 func main() {
+ exe,err:=os.Executable();if err!=nil{panic(err)}
+ directory:=filepath.Dir(exe)
+ if configFile!=""{absolute,e:=filepath.Abs(configFile);if e!=nil{panic(e)};if filepath.Base(absolute)!="config.yaml"{panic("config filename must be config.yaml")};directory=filepath.Dir(absolute)}
+ if err=os.Chdir(directory);err!=nil{panic(err)}
+ if checkConfig {if _,err=deej.ReadSettings("config.yaml");err!=nil{fmt.Fprintln(os.Stderr,err);os.Exit(1)};fmt.Println("Configuration valid");return}
+ cleanup,err:=util.AcquireInstance(directory);if err!=nil{fmt.Fprintln(os.Stderr,err);return};defer cleanup()
+
 
 	// first we need a logger
 	logger, err := deej.NewLogger(buildType)

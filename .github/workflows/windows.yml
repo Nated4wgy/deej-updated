@@ -1,0 +1,52 @@
+name: Windows build and recovery release
+on:
+  push:
+    branches: [master, 'codex/responsive-audio-settings']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: true
+      - name: Build and verify portable bundle
+        shell: pwsh
+        run: ./scripts/build_windows.ps1 -Version ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.sha) }}
+      - name: Race detector
+        shell: pwsh
+        env:
+          CGO_ENABLED: '1'
+        run: |
+          go test -race ./pkg/deej/... 
+          if ($LASTEXITCODE -ne 0) { throw 'Race tests failed' }
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path bin/* -DestinationPath deej-windows-amd64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deej-windows-amd64
+          path: deej-windows-amd64.zip
+          retention-days: 90
+      - name: Preserve successful builds as GitHub releases
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          $tag = "dev-$env:COMMIT"
+          $releaseArgs = @('--prerelease', '--title', "Development build $env:COMMIT")
+          if ($env:REF_TYPE -eq 'tag') { $tag = $env:REF_NAME; $releaseArgs = @('--title', $tag) }
+          gh release create $tag deej-windows-amd64.zip --target $env:COMMIT --notes 'Source is preserved at this commit. Includes portable Windows binaries, build identity and SHA-256 checksums. Development builds require local hardware validation.' @releaseArgs
+          if ($LASTEXITCODE -ne 0) { throw 'Recovery release upload failed' }

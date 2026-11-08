@@ -12,3 +12,9 @@ releases/
 *.bin
 logs/
 preferences.yaml
+
+bin/
+*.syso
+*.zip
+config.yaml.bak
+.deej-*

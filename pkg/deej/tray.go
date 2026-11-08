@@ -1,10 +1,12 @@
 package deej
 
 import (
+ "os"
+ "os/exec"
+ "path/filepath"
 	"github.com/getlantern/systray"
 
 	"github.com/omriharel/deej/pkg/deej/icon"
-	"github.com/omriharel/deej/pkg/deej/util"
 )
 
 func (d *Deej) initializeTray(onDone func()) {
@@ -17,7 +19,7 @@ func (d *Deej) initializeTray(onDone func()) {
 		systray.SetTitle("deej")
 		systray.SetTooltip("deej")
 
-		editConfig := systray.AddMenuItem("Edit configuration", "Open config file with notepad")
+		editConfig := systray.AddMenuItem("Settings...", "Configure sliders and connection")
 		editConfig.SetIcon(icon.EditConfig)
 
 		refreshSessions := systray.AddMenuItem("Re-scan audio sessions", "Manually refresh audio sessions if something's stuck")
@@ -47,14 +49,9 @@ func (d *Deej) initializeTray(onDone func()) {
 				case <-editConfig.ClickedCh:
 					logger.Info("Edit config menu item clicked, opening config for editing")
 
-					editor := "notepad.exe"
-					if util.Linux() {
-						editor = "gedit"
-					}
-
-					if err := util.OpenExternal(logger, editor, userConfigFilepath); err != nil {
-						logger.Warnw("Failed to open config file for editing", "error", err)
-					}
+ exe,_:=os.Executable();settingsExe:=filepath.Join(filepath.Dir(exe),"deej-settings.exe")
+ cmd:=exec.Command(settingsExe,"--config",filepath.Join(mustWorkingDirectory(),"config.yaml"))
+ if err:=cmd.Start();err!=nil{logger.Warnw("Open Settings","error",err);d.notifier.Notify("Settings unavailable","Place deej-settings.exe beside deej.exe.")}else{go cmd.Wait()}
 
 				// refresh sessions
 				case <-refreshSessions.ClickedCh:
@@ -84,3 +81,5 @@ func (d *Deej) stopTray() {
 	d.logger.Debug("Quitting tray")
 	systray.Quit()
 }
+
+func mustWorkingDirectory()string{directory,_:=os.Getwd();return directory}
