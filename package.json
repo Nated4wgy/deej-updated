@@ -1,0 +1,11 @@
+{
+  "name": "deej-desktop-ui-tests",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node scripts/test_ui.cjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.0"
+  }
+}

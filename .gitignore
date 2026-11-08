@@ -12,3 +12,13 @@ releases/
 *.bin
 logs/
 preferences.yaml
+
+bin/
+*.syso
+*.zip
+config.yaml.bak
+.deej-*
+config.yaml.before-restore
+
+node_modules/
+test-results/
