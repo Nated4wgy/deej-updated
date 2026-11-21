@@ -57,12 +57,25 @@ jobs:
           COMMIT: ${{ github.sha }}
         run: |
           $tag = "dev-$env:COMMIT"
-          $releaseArgs = @('--prerelease', '--title', "Development build $env:COMMIT")
-          if ($env:REF_TYPE -eq 'tag') { $tag = $env:REF_NAME; $releaseArgs = @('--title', $tag) }
+          $releaseArgs = @("--prerelease", "--title", "Development build $env:COMMIT")
+          if ($env:REF_TYPE -eq 'tag') {
+            $tag = $env:REF_NAME
+            $releaseArgs = @("--title", $tag)
+          } elseif ($env:REF_NAME -eq 'master') {
+            $version = (Get-Content VERSION -Raw).Trim()
+            if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'VERSION must be MAJOR.MINOR.PATCH' }
+            $tag = "v$version"
+            $releaseArgs = @("--title", "deej for Windows 11 $tag", "--notes-file", "RELEASE_NOTES.md", "--latest")
+          }
+          # Preserve stable artifacts. Later master builds must not replace them.
+          if ($tag -match '^v') {
+            gh release view $tag --json tagName 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) { Write-Host "Stable release $tag exists; leaving it untouched."; exit 0 }
+          }
           gh release view $tag --json tagName 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag deej-windows-amd64.zip --clobber
           } else {
-            gh release create $tag deej-windows-amd64.zip --target $env:COMMIT --notes 'Source is preserved at this commit. Includes portable Windows binaries, build identity and SHA-256 checksums. Development builds require local hardware validation.' @releaseArgs
+            gh release create $tag deej-windows-amd64.zip --target $env:COMMIT --notes "Windows build, source identity and SHA-256 checksums." @releaseArgs
           }
-          if ($LASTEXITCODE -ne 0) { throw 'Recovery release upload failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }

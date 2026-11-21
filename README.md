@@ -1,78 +1,120 @@
-# deej-updated
+<p align="center"><img src="assets/logo.svg" alt="deej" width="96"></p>
+<h1 align="center">deej for Windows 11</h1>
+<p align="center"><strong>Physical sliders. Instant Windows audio control. One modern app.</strong></p>
+<p align="center">A modern Windows 11 edition of <a href="https://github.com/omriharel/deej">Omri Harel's original deej</a>, featuring a responsive audio engine, built-in settings dashboard and automatic USB reconnect after sleep.</p>
+<p align="center"><a href="https://github.com/Nated4wgy/deej-updated/releases/latest"><strong>Download for Windows</strong></a> &nbsp;·&nbsp; <a href="#get-started">Get started</a> &nbsp;·&nbsp; <a href="#build-from-source">Build from source</a> &nbsp;·&nbsp; <a href="docs/windows11-sleep-wake.md">Sleep/wake recovery</a></p>
 
-One Windows app for your physical audio sliders. **deej.exe** contains the responsive mixer and a modern, local settings dashboard. No companion settings executable or external interface assets are required.
+![Preview illustration of the unified deej dashboard](assets/dashboard-preview.svg)
 
-## Run
+<sub>Dashboard illustration based on the current interface. Positions and app assignments are examples, not a live screenshot.</sub>
 
-1. Download a Windows ZIP from [Releases](https://github.com/Nated4wgy/deej-updated/releases) and extract it into a writable folder.
-2. Exit any older mixer or serial monitor using the controller.
-3. Run **deej.exe**. The mixer starts in the tray and opens the dashboard. Configure your COM port, matching firmware baud rate and slider targets, then save.
-4. Close the window whenever you like; the mixer keeps running. Open it again from the tray's Settings menu or by opening deej.exe again.
+## Why deej?
 
-The startup toggle runs quietly in the tray at Windows login. The dashboard uses WebView2 Runtime, normally included with Windows 11. If it is missing, install Microsoft's Evergreen WebView2 Runtime; the background mixer does not depend on the interface being open. The runtime is already present on the development machine. The app loads embedded local content and blocks web-resource requests; it does not serve a local website or need an Internet connection for settings.
+Turn inexpensive Arduino sliders or knobs into independent controls for Windows applications and audio sessions. Keep your music, voice chat and games at the right levels without tabbing out.
 
-For an upgrade, use a fresh folder and copy your existing config.yaml into it. Keep the previous release available until you have tried the new build. Your YAML and firmware remain compatible; no baud-rate or noise-setting changes are made automatically.
+| | |
+|---|---|
+| 🎚️ **Live physical mixing** | Control the master mix, microphone, Windows sounds or individual app processes; supports up to 32 sliders. |
+| 🖥️ **Built-in dashboard** | View live slider positions, select running applications and devices, change preferences and inspect diagnostics. |
+| ⚡ **Responsive audio** | Latest slider values win; the audio worker runs independently from the settings interface. |
+| 🔄 **Windows 11 recovery** | Reconnects after wake, retries unavailable COM ports and detects stalled serial streams. |
+| 💾 **Safer settings** | Atomic YAML saves, backup and restore, external-edit detection and quick access to advanced config. |
+| 🟢 **Portable, single EXE** | No separate settings executable or local web server. Runs in the tray and can start with Windows. |
 
-## Dashboard
+## See it in action
 
-- Live slider cards show physical positions. Add one or more targets with the searchable picker; targets appear as removable chips.
-- Choose discovered apps/devices, system controls, or type an app executable for an application that is not running.
-- Device & preferences contains serial settings, noise filtering, direction inversion and Windows startup.
-- Diagnostics shows the connection, discovered audio targets and recent received-sample-to-volume-call timing. This excludes controller/USB transit and audible playback delay.
-- Light and dark themes are remembered locally. Keyboard navigation and Ctrl+S are supported.
-- Saving validates the config, preserves unrelated YAML, creates config.yaml.bak and atomically replaces the file. Invalid edits keep the mixer's last good configuration.
-- Advanced YAML opens Notepad. Use Reload configuration afterwards. Concurrent edits are detected rather than silently overwritten. Restore backup can recover even a corrupt current file, retaining it as config.yaml.before-restore.
+<table><tr><td width="50%"><img src="assets/build-3d.png" alt="Illustrated DIY physical slider controller"/><sub>DIY slider controller example from the original deej project.</sub></td><td width="50%"><img src="assets/build-shoebox.jpg" alt="DIY deej controller built from accessible materials"/><sub>Another physical controller example. Hardware is built separately and connected by USB.</sub></td></tr></table>
 
-Built-in targets: **master**, **system**, **mic**, **deej.current** (foreground app when moved), **deej.unmapped** (unassigned app sessions). Named devices use the full Windows friendly name, matched case insensitively. Supports up to 32 sliders.
+## Get started
 
-Original scalar/list YAML mappings still work:
+1. **Download** the latest Windows ZIP from [GitHub Releases](https://github.com/Nated4wgy/deej-updated/releases/latest).
+2. **Extract** it to a writable folder, such as `Documents\deej`. Do not install under `Program Files` unless you separately configure a writable settings location.
+3. **Connect** your Arduino/compatible slider controller by USB. Upload compatible deej firmware if you haven't already; an example sketch lives in [arduino/deej-5-sliders-vanilla](arduino/deej-5-sliders-vanilla).
+4. **Run `deej.exe`**. The mixer starts in the system tray and opens the Settings dashboard.
+5. **Select the COM port and firmware baud rate**, then map each slider to a Windows audio target. Save and move a slider to test it.
 
-~~~yaml
+The dashboard uses Microsoft's **WebView2 Runtime**, normally present on Windows 11. If it is missing, install the [Evergreen WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The mixer still runs independently in background mode.
+
+### Choose what a slider controls
+
+| Target | Effect |
+|---|---|
+| `master` | Windows master/output volume |
+| `system` | System sounds |
+| `mic` | Microphone/input volume |
+| `deej.current` | App currently in the foreground |
+| `deej.unmapped` | Audio sessions not assigned to another slider |
+| `spotify.exe`, `discord.exe`, etc. | Individual applications |
+| Device friendly name | Audio session identified by its Windows device name |
+
+You can assign multiple applications to one slider. Applications may need to create an audio session before Windows can adjust their session volume.
+
+### Configuration
+
+The dashboard writes `config.yaml` alongside the executable, retaining unknown YAML keys. The old scalar and list forms both work:
+
+```yaml
 slider_mapping:
   0: master
-  1: [discord.exe, firefox.exe]
-  2: deej.current
-com_port: COM4
+  1: [spotify.exe, firefox.exe]
+  2: discord.exe
+  3: deej.current
+com_port: COM3
 baud_rate: 9600
 invert_sliders: false
 noise_reduction: default
-~~~
+```
 
-YAML indexes start at zero; UI labels start at one. Legacy mappings in logs/preferences.yaml are still merged. Move wanted legacy targets into config.yaml and remove the legacy mapping file if the UI should be the only mapping source.
+Slider indexes start at **0 in YAML** but are numbered from **1 in the interface**. Use your own Windows COM port, not necessarily COM3. A valid config is backed up to `config.yaml.bak` before being replaced. See [the detailed application guide](docs/unified-app.md) for editing, restore and process behaviour.
 
-## Single executable, independent audio work
+## Sleep/wake and USB recovery
 
-The same executable has two runtime roles. The tray mixer owns serial/audio work. Its interface runs in UI-only mode in a separate process of **the same deej.exe**, so rendering and editing do not block slider processing. WebView2 also uses its standard Windows helper processes. Closing the interface releases those resources without stopping the mixer. Reopening reuses the existing interface for that config.
+On Windows 11, deej listens for resume notifications and requests a fresh serial connection without restarting the audio engine. It also retries when a COM port isn't ready, detects a previously active controller that stops delivering valid frames and offers **Reconnect controller** from the tray.
 
-Launch options:
+If a USB device reappears under a **different COM port**, update the port in Settings. See [recovery details and hardware test steps](docs/windows11-sleep-wake.md).
 
-~~~text
-deej.exe                       Start mixer and show interface
-deej.exe --background          Start mixer in tray only
-deej.exe --settings            Open interface without starting another mixer
-deej.exe --check-config        Validate config and exit
-~~~
+## Running modes
 
-Add **--config C:/path/config.yaml** for an explicit configuration location. The default is config.yaml beside the executable, including at login. Use a writable portable folder rather than Program Files.
+```text
+deej.exe                     Start mixer and open the dashboard
+deej.exe --background        Run quietly in the tray
+deej.exe --settings          Open Settings without starting another mixer
+deej.exe --check-config      Validate config.yaml without starting
+deej.exe --config C:\path\config.yaml
+```
 
-Serial ingestion retains only the latest pending value per slider. A persistent Windows audio owner serializes discovery, volume writes and COM release. The previously validated audio pipeline is retained. Sessions refresh every five seconds and physical positions are reapplied; a stationary foreground slider remains bound to its last moved target. High noise reduction still requires larger movements and can feel stepped.
+Closing the dashboard **does not close the mixer**. Reopen Settings from the tray; deej keeps mixing audio in a separate runtime role. Themes include light and dark mode.
 
-## Build and tests
+## Build from source
 
-Windows amd64 is the release target. Install Go 1.27.3 (CI baseline) and Git; put Go on PATH. Production builds need no C compiler. Race detection needs GCC/CGO. Node 22+ and npm are used only for interface regression tests, not to run the app.
+**Windows amd64** is the packaged release target. Install Go (the exact version configured in [Windows CI](.github/workflows/windows.yml)) and Git. Production builds use pure Go and do not require GCC. Node 22+ is only needed for dashboard tests.
 
-~~~powershell
+```powershell
 git clone https://github.com/Nated4wgy/deej-updated.git
 cd deej-updated
-./scripts/build_windows.ps1
+.\scripts\build_windows.ps1
+```
+
+The script generates the Windows icon and manifest resources, verifies dependencies, runs Go tests and vet, and creates `bin\deej.exe`, a starter config, license/notice files, build identity and SHA-256 checksums. It will not overwrite an existing `bin\config.yaml`.
+
+Optional dashboard checks:
+
+```powershell
 npm ci
 npm test
-~~~
+```
 
-The script installs pinned rsrc v0.10.2, generates amd64 icon/manifest resources, verifies dependencies, runs Go tests/vet and builds **bin/deej.exe**. An existing output config is not overwritten. The interface is embedded; no HTML/CSS/JS files, DLL sidecar or settings EXE must be copied alongside it. UI tests use installed Microsoft Edge headlessly with fixture data, separate from user browser profiles and the controller.
+Windows builds, dashboard tests and race detection run on [GitHub Actions](https://github.com/Nated4wgy/deej-updated/actions). Keep a backup of your current configuration when upgrading.
 
-Successful GitHub push builds run all checks, including race and UI tests, then preserve a source-linked ZIP as a prerelease. Tagged v* releases are normal releases. Artifacts are also kept for 90 days; release assets remain recoverable beyond artifact expiry unless deleted. Each bundle includes source/toolchain identity, binary SHA-256 checksums, license notices and a sample config. Personal configuration and logs are not uploaded.
+## Learn more
 
-See [validation](docs/validation.md), [unified app notes](docs/unified-app.md) and [roadmap](docs/roadmap.md). The original Linux backend remains in source; this interface and the release validation target Windows amd64.
+- [Building a controller and original deej documentation](https://github.com/omriharel/deej)
+- [Unified Windows application architecture](docs/unified-app.md)
+- [Sleep/wake and serial troubleshooting](docs/windows11-sleep-wake.md)
+- [Validation and testing](docs/validation.md)
+- [Change history](CHANGELOG.md)
+- [Community hardware examples](community.md)
 
-MIT; see [LICENSE](LICENSE) and THIRD-PARTY-NOTICES.txt. Based on [deej by Omri Harel](https://github.com/omriharel/deej).
+## Credits and license
+
+Based on **[deej by Omri Harel](https://github.com/omriharel/deej)**, with appreciation for the original project and community builds. This Windows 11 edition adds the unified dashboard, responsive mixing improvements, Windows serial recovery and revised branding. Distributed under the same [MIT License](LICENSE). Third-party notices are in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).

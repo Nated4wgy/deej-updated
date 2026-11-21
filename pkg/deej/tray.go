@@ -14,7 +14,7 @@ func (d *Deej) initializeTray(onDone func()) {
 	onReady := func() {
 		logger.Debug("Tray instance ready")
 
-		systray.SetTemplateIcon(icon.DeejLogo, icon.DeejLogo)
+		systray.SetTemplateIcon(trayIcon, trayIcon)
 		systray.SetTitle("deej")
 		systray.SetTooltip("deej")
 
