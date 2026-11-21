@@ -1,6 +1,7 @@
 package deej
 
 import (
+	"errors"
 	"fmt"
 	"github.com/omriharel/deej/pkg/deej/util"
 	"go.bug.st/serial"
@@ -68,10 +69,17 @@ type SerialIO struct {
 	done    chan struct{}
 	started bool
 	reload  chan bool
+
+	// reconnect is a coalescing request channel. Only the serial owner goroutine
+	// opens and closes ports; callers never race an in-flight Read with Close.
+	reconnect chan struct{}
+	// everStreamed remembers whether this controller has actually provided
+	// frames, so a change-only firmware is not repeatedly reconnected on idle.
+	everStreamed bool
 }
 
 func NewSerialIO(d *Deej, logger *zap.SugaredLogger) (*SerialIO, error) {
-	return &SerialIO{deej: d, logger: logger.Named("serial"), pending: newLatestSliders(), stop: make(chan struct{}), done: make(chan struct{}), reload: d.config.SubscribeToChanges()}, nil
+	return &SerialIO{deej: d, logger: logger.Named("serial"), pending: newLatestSliders(), stop: make(chan struct{}), done: make(chan struct{}), reload: d.config.SubscribeToChanges(), reconnect: make(chan struct{}, 1)}, nil
 }
 func (s *SerialIO) Status() SerialStatus {
 	s.mu.Lock()
@@ -80,6 +88,16 @@ func (s *SerialIO) Status() SerialStatus {
 	result.Positions = append([]float32(nil), s.status.Positions...)
 	return result
 }
+// Reconnect asks the serial owner to reopen the currently configured port.
+// A full channel means a reconnect is already pending; never block the tray
+// or a Windows power notification callback while trying to request another.
+func (s *SerialIO) Reconnect() {
+	select {
+	case s.reconnect <- struct{}{}:
+	default:
+	}
+}
+
 func (s *SerialIO) Start() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -107,6 +125,17 @@ func (s *SerialIO) Stop() {
 }
 func (s *SerialIO) run() {
 	defer close(s.done)
+
+	// Windows reports resume even if the old COM handle still looks valid.
+	// Never close it from that callback: wake the owner and let its bounded
+	// Read finish before it releases and reopens the connection.
+	unsubscribe, subscriptionErr := subscribeSystemResume(s.Reconnect)
+	if subscriptionErr != nil {
+		s.logger.Warnw("Windows resume notifications unavailable; serial watchdog still active", "error", subscriptionErr)
+	} else {
+		defer unsubscribe()
+	}
+
 	backoff := time.Second
 	for {
 		select {
@@ -127,6 +156,8 @@ func (s *SerialIO) run() {
 			case <-s.stop:
 				return
 			case <-s.reload:
+			case <-s.reconnect:
+				backoff = time.Second
 			case <-time.After(backoff):
 			}
 			if backoff < 5*time.Second {
@@ -158,18 +189,35 @@ func (s *SerialIO) run() {
 		backoff = time.Second
 		s.logger.Infow("Serial connected", "port", cfg.COMPort)
 		err = s.readConnection(p, cfg)
+		// The connection owner is the only goroutine calling Close. This is
+		// important on Windows: a concurrent Close and overlapped Read can
+		// interfere with the serial driver during USB sleep/wake transitions.
 		s.mu.Lock()
-		p.Close()
+		_ = p.Close()
 		s.port = nil
 		s.status.Connected = false
 		if err != nil {
 			s.status.Error = err.Error()
+		} else {
+			s.status.Error = ""
 		}
 		s.mu.Unlock()
+		if err != nil && !errors.Is(err, errReconnectRequested) {
+			s.logger.Warnw("Serial connection interrupted; reopening", "port", cfg.COMPort, "error", err)
+		}
+
+		// Windows needs time to re-enumerate a USB controller after resume.
+		// Initial / normal retries remain fast; the explicit resume path
+		// waits a little longer before reopening that COM port.
+		delay := 100 * time.Millisecond
+		if errors.Is(err, errReconnectRequested) {
+			delay = 1200 * time.Millisecond
+		}
 		select {
 		case <-s.stop:
 			return
-		case <-time.After(100 * time.Millisecond):
+		case <-s.reload:
+		case <-time.After(delay):
 		}
 	}
 }
@@ -226,14 +274,46 @@ func parseSliderFrame(line string) ([]int, error) {
 	}
 	return values, nil
 }
+const (
+	// The stock firmware emits frames approximately every 10 ms. Several
+	// seconds without a valid frame means the connection is almost certainly
+	// stalled, not that the user has left the sliders untouched.
+	serialFrameStallTimeout = 5 * time.Second
+	// When re-opening a previously active controller, also detect a COM
+	// handle that opens successfully but never delivers its first frame.
+	serialInitialFrameTimeout = 8 * time.Second
+)
+
+var (
+	errReconnectRequested = errors.New("serial reconnect requested")
+	errSerialStreamStalled = errors.New("serial controller stopped sending valid frames")
+)
+
+// serialStreamStalled deliberately does NOT time out the first-ever open of a
+// controller that has never streamed. Some third-party firmwares send only on
+// changes, and we should not constantly reset those while they are idle.
+func serialStreamStalled(openedAt, lastValidFrame, now time.Time, previouslyStreamed bool) bool {
+	if !lastValidFrame.IsZero() {
+		return now.Sub(lastValidFrame) >= serialFrameStallTimeout
+	}
+	return previouslyStreamed && now.Sub(openedAt) >= serialInitialFrameTimeout
+}
+
 func (s *SerialIO) readConnection(p serial.Port, cfg Settings) error {
 	var decoder frameDecoder
 	var previous []float32
 	buffer := make([]byte, 256)
+	openedAt := time.Now()
+	var lastValidFrame time.Time
+	// Only the serial owner reads/writes everStreamed, avoiding synchronization
+	// with the UI/status polling and preserving the existing audio pipeline.
+	previouslyStreamed := s.everStreamed
 	for {
 		select {
 		case <-s.stop:
 			return nil
+		case <-s.reconnect:
+			return errReconnectRequested
 		case <-s.reload:
 			next := s.deej.config.Snapshot()
 			if next.COMPort != cfg.COMPort || next.BaudRate != cfg.BaudRate {
@@ -248,10 +328,15 @@ func (s *SerialIO) readConnection(p serial.Port, cfg Settings) error {
 			return err
 		}
 		if n == 0 {
+			if serialStreamStalled(openedAt, lastValidFrame, time.Now(), previouslyStreamed) {
+				return errSerialStreamStalled
+			}
 			continue
 		}
 		decoder.feed(buffer[:n], func(raw []int) {
 			received := time.Now()
+			lastValidFrame = received
+			s.everStreamed = true
 			if len(previous) != len(raw) {
 				previous = make([]float32, len(raw))
 				for i := range previous {
@@ -275,5 +360,8 @@ func (s *SerialIO) readConnection(p serial.Port, cfg Settings) error {
 			s.status.LastFrame = received
 			s.mu.Unlock()
 		})
+		if serialStreamStalled(openedAt, lastValidFrame, time.Now(), previouslyStreamed) {
+			return errSerialStreamStalled
+		}
 	}
 }

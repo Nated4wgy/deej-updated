@@ -24,6 +24,8 @@ func (d *Deej) initializeTray(onDone func()) {
 		refreshSessions := systray.AddMenuItem("Re-scan audio sessions", "Manually refresh audio sessions if something's stuck")
 		refreshSessions.SetIcon(icon.RefreshSessions)
 
+		reconnectController := systray.AddMenuItem("Reconnect controller", "Close and reopen the configured COM port")
+
 		if d.version != "" {
 			systray.AddSeparator()
 			versionInfo := systray.AddMenuItem(d.version, "")
@@ -52,6 +54,12 @@ func (d *Deej) initializeTray(onDone func()) {
 						logger.Warnw("Open interface", "error", err)
 						d.notifier.Notify("Could not open Deej", err.Error())
 					}
+
+				// Request a fresh COM connection without restarting deej or
+				// touching the independent Windows audio session owner.
+				case <-reconnectController.ClickedCh:
+					logger.Info("Manual controller reconnect requested")
+					d.serial.Reconnect()
 
 				// refresh sessions
 				case <-refreshSessions.ClickedCh:
