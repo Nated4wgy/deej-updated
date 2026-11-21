@@ -2,9 +2,10 @@ package deej
 
 import (
 	"github.com/getlantern/systray"
+	"os"
+	"path/filepath"
 
 	"github.com/omriharel/deej/pkg/deej/icon"
-	"github.com/omriharel/deej/pkg/deej/util"
 )
 
 func (d *Deej) initializeTray(onDone func()) {
@@ -17,11 +18,13 @@ func (d *Deej) initializeTray(onDone func()) {
 		systray.SetTitle("deej")
 		systray.SetTooltip("deej")
 
-		editConfig := systray.AddMenuItem("Edit configuration", "Open config file with notepad")
+		editConfig := systray.AddMenuItem("Settings...", "Configure sliders and connection")
 		editConfig.SetIcon(icon.EditConfig)
 
 		refreshSessions := systray.AddMenuItem("Re-scan audio sessions", "Manually refresh audio sessions if something's stuck")
 		refreshSessions.SetIcon(icon.RefreshSessions)
+
+		reconnectController := systray.AddMenuItem("Reconnect controller", "Close and reopen the configured COM port")
 
 		if d.version != "" {
 			systray.AddSeparator()
@@ -47,14 +50,16 @@ func (d *Deej) initializeTray(onDone func()) {
 				case <-editConfig.ClickedCh:
 					logger.Info("Edit config menu item clicked, opening config for editing")
 
-					editor := "notepad.exe"
-					if util.Linux() {
-						editor = "gedit"
+					if err := OpenSettings(filepath.Join(mustWorkingDirectory(), "config.yaml")); err != nil {
+						logger.Warnw("Open interface", "error", err)
+						d.notifier.Notify("Could not open Deej", err.Error())
 					}
 
-					if err := util.OpenExternal(logger, editor, userConfigFilepath); err != nil {
-						logger.Warnw("Failed to open config file for editing", "error", err)
-					}
+				// Request a fresh COM connection without restarting deej or
+				// touching the independent Windows audio session owner.
+				case <-reconnectController.ClickedCh:
+					logger.Info("Manual controller reconnect requested")
+					d.serial.Reconnect()
 
 				// refresh sessions
 				case <-refreshSessions.ClickedCh:
@@ -66,6 +71,12 @@ func (d *Deej) initializeTray(onDone func()) {
 				}
 			}
 		}()
+
+		if d.openSettingsOnStart {
+			if err := OpenSettings(filepath.Join(mustWorkingDirectory(), "config.yaml")); err != nil {
+				logger.Warnw("Open interface", "error", err)
+			}
+		}
 
 		// actually start the main runtime
 		onDone()
@@ -84,3 +95,5 @@ func (d *Deej) stopTray() {
 	d.logger.Debug("Quitting tray")
 	systray.Quit()
 }
+
+func mustWorkingDirectory() string { directory, _ := os.Getwd(); return directory }

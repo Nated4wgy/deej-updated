@@ -1,166 +1,78 @@
-# README.md
-
 # deej-updated
 
-A Windows 11 focused fork of deej with a companion Settings app. The main mixer behaviour remains the same: an Arduino (or compatible microcontroller) sends slider values over serial and the Windows client applies volume changes to audio sessions.
+One Windows app for your physical audio sliders. **deej.exe** contains the responsive mixer and a modern, local settings dashboard. No companion settings executable or external interface assets are required.
 
-This fork adds a clean Settings UI, improves Windows 11 reliability, and includes a simple release workflow for building portable binaries.
+## Run
 
-## What is included
+1. Download a Windows ZIP from [Releases](https://github.com/Nated4wgy/deej-updated/releases) and extract it into a writable folder.
+2. Exit any older mixer or serial monitor using the controller.
+3. Run **deej.exe**. The mixer starts in the tray and opens the dashboard. Configure your COM port, matching firmware baud rate and slider targets, then save.
+4. Close the window whenever you like; the mixer keeps running. Open it again from the tray's Settings menu or by opening deej.exe again.
 
-- deej.exe
-  - The main Windows tray application that reads the serial device and controls volume
-- deej-settings.exe
-  - A companion Settings UI for editing config.yaml and slider mappings
-- Sidecar files for Windows GUI correctness and polish
-  - deej.exe.manifest
-  - deej-settings.exe.manifest
-  - deej-settings.ico
+The startup toggle runs quietly in the tray at Windows login. The dashboard uses WebView2 Runtime, normally included with Windows 11. If it is missing, install Microsoft's Evergreen WebView2 Runtime; the background mixer does not depend on the interface being open. The runtime is already present on the development machine. The app loads embedded local content and blocks web-resource requests; it does not serve a local website or need an Internet connection for settings.
 
-## Major improvements in this fork
+For an upgrade, use a fresh folder and copy your existing config.yaml into it. Keep the previous release available until you have tried the new build. Your YAML and firmware remain compatible; no baud-rate or noise-setting changes are made automatically.
 
-- Windows 11 friendly startup behaviour
-  - deej runs correctly when started at login and can still find config.yaml next to the exe
-- Settings app
-  - General settings editor
-  - Slider mapping editor with dropdown target types and app exe entry
-  - Advanced YAML editor for full config control
-- Start with Windows toggle
-  - Available from tray and Settings UI
-- Stability fix when saving settings
-  - Saving config.yaml from the Settings app no longer crashes deej during session refresh
+## Dashboard
 
-## Quick start
+- Live slider cards show physical positions. Add one or more targets with the searchable picker; targets appear as removable chips.
+- Choose discovered apps/devices, system controls, or type an app executable for an application that is not running.
+- Device & preferences contains serial settings, noise filtering, direction inversion and Windows startup.
+- Diagnostics shows the connection, discovered audio targets and recent received-sample-to-volume-call timing. This excludes controller/USB transit and audible playback delay.
+- Light and dark themes are remembered locally. Keyboard navigation and Ctrl+S are supported.
+- Saving validates the config, preserves unrelated YAML, creates config.yaml.bak and atomically replaces the file. Invalid edits keep the mixer's last good configuration.
+- Advanced YAML opens Notepad. Use Reload configuration afterwards. Concurrent edits are detected rather than silently overwritten. Restore backup can recover even a corrupt current file, retaining it as config.yaml.before-restore.
 
-1. Build or download the binaries into a folder.
-2. Put config.yaml in the same folder as deej.exe.
-3. Run deej.exe.
-4. Open the Settings app from the tray menu.
+Built-in targets: **master**, **system**, **mic**, **deej.current** (foreground app when moved), **deej.unmapped** (unassigned app sessions). Named devices use the full Windows friendly name, matched case insensitively. Supports up to 32 sliders.
 
-## Building on Windows 11
+Original scalar/list YAML mappings still work:
 
-### Prerequisites
-
-- Go installed
-- A working C toolchain for Windows builds that use systray (CGO)
-  - A common approach is MSYS2 with mingw-w64 GCC installed
-  - If your environment already builds getlantern systray projects, you are fine
-
-### Build using the included script
-
-From the repo root:
-
-```powershell
-.\scripts\build_windows.ps1
-
-This builds into .\bin\ by default and copies the manifest files plus the Settings icon into the output folder.
-
-Build manually
-mkdir bin -Force | Out-Null
-
-go mod tidy
-
-go build -ldflags "-H=windowsgui" -o .\bin\deej.exe .\pkg\deej\cmd
-go build -ldflags "-H=windowsgui" -o .\bin\deej-settings.exe .\pkg\deej\cmd\settings
-
-
-Copy required sidecar files next to the executables:
-
-Copy-Item .\assets\manifests\deej.exe.manifest .\bin\deej.exe.manifest -Force
-Copy-Item .\assets\manifests\deej-settings.exe.manifest .\bin\deej-settings.exe.manifest -Force
-Copy-Item .\assets\icons\deej-settings.ico .\bin\deej-settings.ico -Force
-
-
-Important: the Settings app relies on the manifest being next to the exe on some Windows setups. If it is missing, the app can fail to start with a Walk tooltip initialisation error.
-
-If Go refuses to build because go.sum is missing
-
-If you see errors about missing go.sum entries, run:
-
-$env:GOFLAGS=""
-go mod tidy
-
-
-If your machine has GOFLAGS set to readonly module mode globally, clear it for the build session as above.
-
-Configuration
-
-The main config file is config.yaml and should live next to deej.exe.
-
-Slider mapping format
-
-This fork supports both formats:
-
-Scalar form:
-
+~~~yaml
 slider_mapping:
   0: master
-  1: chrome.exe
+  1: [discord.exe, firefox.exe]
+  2: deej.current
+com_port: COM4
+baud_rate: 9600
+invert_sliders: false
+noise_reduction: default
+~~~
 
+YAML indexes start at zero; UI labels start at one. Legacy mappings in logs/preferences.yaml are still merged. Move wanted legacy targets into config.yaml and remove the legacy mapping file if the UI should be the only mapping source.
 
-List form:
+## Single executable, independent audio work
 
-slider_mapping:
-  0:
-    - master
-  1:
-    - chrome.exe
-    - spotify.exe
+The same executable has two runtime roles. The tray mixer owns serial/audio work. Its interface runs in UI-only mode in a separate process of **the same deej.exe**, so rendering and editing do not block slider processing. WebView2 also uses its standard Windows helper processes. Closing the interface releases those resources without stopping the mixer. Reopening reuses the existing interface for that config.
 
-Special targets
+Launch options:
 
-Common built in targets used by deej include:
+~~~text
+deej.exe                       Start mixer and show interface
+deej.exe --background          Start mixer in tray only
+deej.exe --settings            Open interface without starting another mixer
+deej.exe --check-config        Validate config and exit
+~~~
 
-master
+Add **--config C:/path/config.yaml** for an explicit configuration location. The default is config.yaml beside the executable, including at login. Use a writable portable folder rather than Program Files.
 
-system
+Serial ingestion retains only the latest pending value per slider. A persistent Windows audio owner serializes discovery, volume writes and COM release. The previously validated audio pipeline is retained. Sessions refresh every five seconds and physical positions are reapplied; a stationary foreground slider remains bound to its last moved target. High noise reduction still requires larger movements and can feel stepped.
 
-mic
+## Build and tests
 
-deej.current
+Windows amd64 is the release target. Install Go 1.27.3 (CI baseline) and Git; put Go on PATH. Production builds need no C compiler. Race detection needs GCC/CGO. Node 22+ and npm are used only for interface regression tests, not to run the app.
 
-deej.unmapped
+~~~powershell
+git clone https://github.com/Nated4wgy/deej-updated.git
+cd deej-updated
+./scripts/build_windows.ps1
+npm ci
+npm test
+~~~
 
-For controlling applications, use the process name, for example chrome.exe, spotify.exe, discord.exe.
+The script installs pinned rsrc v0.10.2, generates amd64 icon/manifest resources, verifies dependencies, runs Go tests/vet and builds **bin/deej.exe**. An existing output config is not overwritten. The interface is embedded; no HTML/CSS/JS files, DLL sidecar or settings EXE must be copied alongside it. UI tests use installed Microsoft Edge headlessly with fixture data, separate from user browser profiles and the controller.
 
-Settings app
+Successful GitHub push builds run all checks, including race and UI tests, then preserve a source-linked ZIP as a prerelease. Tagged v* releases are normal releases. Artifacts are also kept for 90 days; release assets remain recoverable beyond artifact expiry unless deleted. Each bundle includes source/toolchain identity, binary SHA-256 checksums, license notices and a sample config. Personal configuration and logs are not uploaded.
 
-deej-settings.exe can edit:
+See [validation](docs/validation.md), [unified app notes](docs/unified-app.md) and [roadmap](docs/roadmap.md). The original Linux backend remains in source; this interface and the release validation target Windows amd64.
 
-General serial options (COM port, baud)
-
-Common behaviour options (invert sliders, noise reduction)
-
-Slider mapping entries with a friendly editor
-
-Any other YAML keys through the Advanced YAML editor
-
-The Settings window icon is loaded from deej-settings.ico next to the exe. You can replace this file with your own ico if you want custom branding.
-
-Release folder layout
-
-A portable release folder typically contains:
-
-deej.exe
-
-deej.exe.manifest
-
-deej-settings.exe
-
-deej-settings.exe.manifest
-
-deej-settings.ico
-
-config.yaml
-
-Optional:
-
-preferences.yaml (if used in your build)
-
-License and attribution
-
-This repository remains under the MIT License, same as upstream deej. See LICENSE.
-
-Upstream project: deej by Omri Harel.
-This fork focuses on Windows 11 build and usability improvements plus a companion Settings application.
-
+MIT; see [LICENSE](LICENSE) and THIRD-PARTY-NOTICES.txt. Based on [deej by Omri Harel](https://github.com/omriharel/deej).

@@ -52,3 +52,5 @@ func (s *baseSession) Key() string {
 
 	return strings.ToLower(s.name)
 }
+
+func(s *baseSession)IsMaster()bool{return s.master}

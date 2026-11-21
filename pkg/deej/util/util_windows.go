@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	getCurrentWindowInternalCooldown = time.Millisecond * 350
+	getCurrentWindowInternalCooldown = time.Millisecond * 40
 )
 
 var (
@@ -57,7 +57,7 @@ func getCurrentWindowProcessNames() ([]string, error) {
 
 			// warning: this can silently fail, needs to be tested more thoroughly and possibly reverted in the future
 			actualProcess, err := ps.FindProcess(int(childPID))
-			if err == nil {
+			if err == nil && actualProcess != nil {
 				result = append(result, actualProcess.Executable())
 			}
 		}
@@ -83,6 +83,8 @@ func getCurrentWindowProcessNames() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get parent process for pid %d: %w", ownerPID, err)
 	}
+
+	if process == nil { return nil, nil }
 
 	// add it to our result slice
 	result = append(result, process.Executable())
