@@ -2,12 +2,12 @@
 
 This is an **opt-in** sketch for a five-slider ATmega controller using a
 separate FTDI USB-to-serial interface. The original
-\`arduino/deej-5-sliders-vanilla/deej-5-sliders-vanilla.ino\` remains intact.
+`arduino/deej-5-sliders-vanilla/deej-5-sliders-vanilla.ino` remains intact.
 
 ## Why this sketch is conservative
 
 The confirmed Windows hardware ID,
-\`FTDIBUS\COMPORT&VID_0403&PID_6001\`, identifies an FTDI USB-to-serial
+`FTDIBUS\COMPORT&VID_0403&PID_6001`, identifies an FTDI USB-to-serial
 interface, **not the ATmega model or bootloader**. We cannot know yet whether
 its bootloader can safely restart after an AVR watchdog reset.
 
@@ -20,12 +20,12 @@ Device Manager disable/enable remains a useful separate recovery method.
 
 - Keeps **A0-A4**, five analog sliders, **9600 baud** and the same
   pipe-separated numeric frame output expected by the existing Windows app.
-- Replaces dynamic \`String\` concatenation with direct \`Serial.print\`
+- Replaces dynamic `String` concatenation with direct `Serial.print`
   operations, avoiding repeated heap allocations.
-- Adds a bounded, nonblocking command parser. The host may send \`HB\n\`
-  (or \`PING\n\`) as a lightweight heartbeat.
-- \`STATUS\n\` replies with \`#DEEJ:HB=FRESH;WDT=OFF\` when heartbeats
-  arrived recently, or \`#DEEJ:HB=NONE;WDT=OFF\` otherwise. This diagnostic
+- Adds a bounded, nonblocking command parser. The host may send `HB\n`
+  (or `PING\n`) as a lightweight heartbeat.
+- `STATUS\n` replies with `#DEEJ:HB=FRESH;WDT=OFF` when heartbeats
+  arrived recently, or `#DEEJ:HB=NONE;WDT=OFF` otherwise. This diagnostic
   line is only emitted on explicit request and is not a volume frame.
 - Never resets the controller, stops streaming or enters a busy wait when
   heartbeats stop. This is important during normal Windows sleep.
@@ -36,7 +36,7 @@ Device Manager disable/enable remains a useful separate recovery method.
 
 1. Back up your currently installed sketch.
 2. In Arduino IDE, open
-   \`arduino/deej-5-sliders-resilient/deej-5-sliders-resilient.ino\`.
+   `arduino/deej-5-sliders-resilient/deej-5-sliders-resilient.ino`.
 3. Choose the *actual* board and processor under Tools. An FTDI COM port
    does **not** prove this is a Nano/ATmega328P.
 4. Verify/compile first. With the default watchdog setting, flash and check
@@ -44,26 +44,26 @@ Device Manager disable/enable remains a useful separate recovery method.
 5. To test the heartbeat, fully close deej and other serial monitors.
    In Windows PowerShell, run:
 
-   \`\`\`powershell
+   ```powershell
    .\scripts\test_deej_heartbeat.ps1 -ComPort COM4 -DurationSeconds 15
-   \`\`\`
+   ```
 
    Replace COM4 with your actual port. Look for
-   \`#DEEJ:HB=FRESH;WDT=OFF\`. Then close the tester and reopen deej.
+   `#DEEJ:HB=FRESH;WDT=OFF`. Then close the tester and reopen deej.
 
 ## Enable the actual AVR watchdog only after checking the bootloader
 
 In the resilient sketch, change:
 
-\`\`\`cpp
+```cpp
 #define DEEJ_ENABLE_WATCHDOG 0
-\`\`\`
+```
 
-to \`1\`. **Do this only after identifying the exact board, AVR chip,
+to `1`. **Do this only after identifying the exact board, AVR chip,
 bootloader and recovery/upload method.** Certain older Nano bootloaders
 cannot survive watchdog-triggered resets and may get stuck continually
 resetting until reflashed via a programmer or updated bootloader. The
-early application startup hook (\`.init3\`) does not fix bootloader code
+early application startup hook (`.init3`) does not fix bootloader code
 that itself runs before the sketch.
 
 The watchdog is fed only after each full sample/send loop succeeds.
