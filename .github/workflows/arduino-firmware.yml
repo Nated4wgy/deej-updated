@@ -1,0 +1,22 @@
+name: Arduino AVR firmware compile
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile-arduino-avr-uno:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install Arduino AVR board platform
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+      - name: Compile default safe sketch (watchdog off)
+        run: arduino-cli compile --fqbn arduino:avr:uno arduino/deej-5-sliders-resilient
+      - name: Compile watchdog opt-in variant
+        run: arduino-cli compile --fqbn arduino:avr:uno --build-property "compiler.cpp.extra_flags=-DDEEJ_ENABLE_WATCHDOG=1" arduino/deej-5-sliders-resilient

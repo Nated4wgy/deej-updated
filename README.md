@@ -67,6 +67,18 @@ noise_reduction: default
 
 Slider indexes start at **0 in YAML** but are numbered from **1 in the interface**. Use your own Windows COM port, not necessarily COM3. A valid config is backed up to `config.yaml.bak` before being replaced. See [the detailed application guide](docs/unified-app.md) for editing, restore and process behaviour.
 
+### Optional ATmega firmware hardening
+
+The existing five-slider sketch is preserved. A separate [resilient AVR
+sketch](arduino/deej-5-sliders-resilient/deej-5-sliders-resilient.ino)
+adds fixed-allocation serial output, optional host heartbeat diagnostics,
+and an **opt-in** AVR watchdog. The watchdog is deliberately off until
+your board and bootloader are identified; older bootloaders can enter
+watchdog reset loops. The current deej Windows app does not yet send
+heartbeats. The sketch is compatible with the existing numeric slider
+protocol. See [Arduino firmware guide](docs/arduino-firmware-resilience.md)
+and the [PowerShell heartbeat test](scripts/test_deej_heartbeat.ps1).
+
 ## Sleep/wake and USB recovery
 
 On Windows 11, deej listens for resume notifications and requests a fresh serial connection without restarting the audio engine. It also retries when a COM port isn't ready, detects a previously active controller that stops delivering valid frames and offers **Reconnect controller** from the tray.
